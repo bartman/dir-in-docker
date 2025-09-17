@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-set -e
+set -eu
+
+SELF=$(realpath $0)
+SELFDIR=$(dirname ${SELF})
+SELF=${SELF##*/}
 
 PROJECT=grok-cli-wrapper
-PWD=$(pwd)
+WORKDIR=$(pwd)
 TARGET=
 
 HOSTNAME="$(hostname)"
@@ -51,7 +55,7 @@ function set_build_args {
     [ -n "$value" ] && BUILD_ARGS+=( "--build-arg=GIT_NAME=$value" )
 
     # Add UID, GID, and USERNAME as build arguments to match host user
-    BUILD_ARGS+=( "--build-arg=WORKDIR=$PWD" )
+    BUILD_ARGS+=( "--build-arg=WORKDIR=$WORKDIR" )
     BUILD_ARGS+=( "--build-arg=UID=$USER_UID" )
     BUILD_ARGS+=( "--build-arg=GID=$USER_GID" )
     BUILD_ARGS+=( "--build-arg=USERNAME=$USERNAME" )
@@ -119,7 +123,7 @@ function show_status {
 # Function to display help
 show_help() {
     cat <<END
-${0##*/} <target> <command>[,<command>,...] [...]
+${SELF} <target> <command>[,<command>,...] [...]
 
     Available commands:
 
@@ -169,7 +173,7 @@ case "$cmd" in
         [[ "$cmd" =~ $re ]] || die "bad"
         for x in ${cmd//,/ } ; do
             echo -e >&2 "# ${BRIGHT_YELLOW}$0 $x $*${RESET}"
-            if ! $0 "$target" "$x" "$@" ; then
+            if ! "$SELFDIR/$SELF" "$target" "$x" "$@" ; then
                 die "failed: $0 $x $*"
             fi
         done
@@ -192,7 +196,7 @@ case "$cmd" in
         ;;
     up|start)
         ( set -x
-        docker run -d --init -v "$PWD:$PWD" --user "$USER_UID:$USER_GID" --name "${NAME}" "${NAME}"
+        docker run -d --init -v "$WORKDIR:$WORKDIR" --user "$USER_UID:$USER_GID" --name "${NAME}" "${NAME}"
         )
         exit $?
         ;;
@@ -238,7 +242,7 @@ case "$cmd" in
             exit 1
         else
             ( set -x
-            docker exec -i -w "${PWD}" "$container_id" /bin/bash -l -c "$*"
+            docker exec -i -w "${WORKDIR}" "$container_id" /bin/bash -l -c "$*"
             )
         fi
         ;;
