@@ -2,19 +2,22 @@ FROM debian:testing
 
 # Install curl, Node.js (LTS version 20), and npm in one layer to reduce image size
 RUN apt-get update && \
-    apt-get install -y curl ca-certificates && \
-    apt-get install -y npm nodejs sudo neovim && \
+    apt-get install -y curl ca-certificates npm nodejs sudo neovim kitty-terminfo && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g bun
 
-# this lets us have the same UID:GID in the container
+# all the variables passed in from the shell script
 ARG UID
 ARG GID
 ARG USERNAME
 ARG WORKDIR
 ARG EXTRA_ENV
+ARG GIT_EMAIL
+ARG GIT_NAME
+
+# this lets us have the same UID:GID in the container
 RUN getent group users || groupadd -g $GID users
 #RUN getent passwd ubuntu && userdel ubuntu
 RUN useradd -u $UID -g $GID -m -s /bin/bash $USERNAME
@@ -39,17 +42,24 @@ RUN echo "export ${EXTRA_ENV}" >> /home/${USERNAME}/.bashrc
 #        "grok-3-mini-fast"
 #    ]
 #}
-COPY grok-user-settings.json /home/${USERNAME}/.grok/user-settings.json
+COPY --chown=${UID}:${GID} grok-user-settings.json /home/${USERNAME}/.grok/user-settings.json
 
-# had issues with the latest
+# had issues with the latest versions
 #RUN bun add -g @vibe-kit/grok-cli
-RUN bun add -g @vibe-kit/grok-cli@0.0.27
+#RUN bun add -g @vibe-kit/grok-cli@0.0.27
+#RUN bun add -g @vibe-kit/grok-cli@0.0.29
+
+RUN git clone https://github.com/superagent-ai/grok-cli/ ~/grok-cli && \
+    cd ~/grok-cli && \
+    sed -i -e 's,/usr/bin/env node,/usr/bin/env bun,' src/index.ts && \
+    bun install && \
+    bun run build && \
+    bun link && \
+    echo "alias grok='bun /home/${USERNAME}/grok-cli/dist/index.js'" >> /home/${USERNAME}/.bashrc
 
 # Make git usable inside container
 RUN git config --global --add safe.directory ${WORKDIR}
 
-ARG GIT_EMAIL
-ARG GIT_NAME
 ENV GIT_EMAIL=${GIT_EMAIL}
 ENV GIT_NAME=${GIT_NAME}
 RUN git config --global user.email "${GIT_EMAIL}"
