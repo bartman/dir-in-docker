@@ -16,3 +16,9 @@ or created if you have `GROK_API_KEY` or `XAI_API_KEY` environment variable set.
 
 In the container, just run `grok`.
 
+## TODO
+
+- this is getting complex -- consider python or rust.
+- have a config file the script reads: ENV vars to copy, files to copy, shared volumes to mount, etc
+- generate a custom Dockerfile instead of using `ENV` variables to pass info to an existing Dockerfile.
+  maybe use some templating engine (python/rust).
