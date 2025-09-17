@@ -56,11 +56,23 @@ function set_build_args {
     [ -z "$value" ] && value="$USERNAME"
     [ -n "$value" ] && BUILD_ARGS+=( "--build-arg=GIT_NAME=$value" )
 
-    # Add UID, GID, and USERNAME as build arguments to match host user
+    # Add WORKDIR, UID, GID, and USERNAME as build arguments to match host user
     BUILD_ARGS+=( "--build-arg=WORKDIR=$WORKDIR" )
     BUILD_ARGS+=( "--build-arg=UID=$USER_UID" )
     BUILD_ARGS+=( "--build-arg=GID=$USER_GID" )
     BUILD_ARGS+=( "--build-arg=USERNAME=$USERNAME" )
+
+    # Capture other useful environment variables
+    local extra_env=
+    for var in TERM EDITOR VISUAL LANG FULLNAME ; do
+        local val="${!var}"
+        if [ -n "$val" ] ; then
+            [ -n "${extra_env}" ] && extra_env+=' '
+            extra_env+="$var=\"$val\""
+        fi
+    done
+    echo "# extra_env: ${extra_env}"
+    BUILD_ARGS+=( "--build-arg=EXTRA_ENV=${extra_env}" )
 }
 
 GROK_USER_SETTINGS_JSON=grok-user-settings.json

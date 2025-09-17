@@ -14,6 +14,7 @@ ARG UID
 ARG GID
 ARG USERNAME
 ARG WORKDIR
+ARG EXTRA_ENV
 RUN getent group users || groupadd -g $GID users
 #RUN getent passwd ubuntu && userdel ubuntu
 RUN useradd -u $UID -g $GID -m -s /bin/bash $USERNAME
@@ -23,6 +24,7 @@ USER $USERNAME
 # Create ~/.bun/bin & ~/.local/bin directories, add them to the PATH
 RUN mkdir -p /home/${USERNAME}/.bun/bin /home/${USERNAME}/.local/bin
 RUN echo 'export PATH=$HOME/.bun/bin:$HOME/.local/bin:$PATH' >> /home/${USERNAME}/.bashrc
+RUN echo "export ${EXTRA_ENV}" >> /home/${USERNAME}/.bashrc
 
 # should have something like this in ~/.grok/user-settings.json
 #{
