@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -eu
 
-SELF=$(realpath $0)
-SELFDIR=$(dirname ${SELF})
-SELF=${SELF##*/}
+SELF="$(realpath $0)"
+SELFDIR="$(dirname "${SELF}")"
+SELF="${SELF##*/}"
 
 PROJECT=grok-cli-wrapper
-WORKDIR=$(pwd)
+WORKDIR="$(pwd)"
 TARGET=
 
 HOSTNAME="$(hostname)"
@@ -25,7 +25,9 @@ function die {
 }
 
 function available_targets {
-    ls Dockerfile.* 2>/dev/null | sed -n 's/^Dockerfile\.\([A-Za-z0-9]\+\)$/\1/p'
+    find "$SELFDIR" -regex '.*/Dockerfile\.[A-Za-z0-9]+' -printf '%f\n' | while read filename ; do
+    echo "${filename##*.}"
+    done
 }
 
 declare TARGET= DOCKERFILE= NAME=
@@ -33,10 +35,10 @@ declare TARGET= DOCKERFILE= NAME=
 function set_target {
     TARGET="$1"
     [ -z "$TARGET" ] && die "Target not specified"
-    DOCKERFILE="Dockerfile.$TARGET"
+    DOCKERFILE="$SELFDIR/Dockerfile.$TARGET"
     [ -f "$DOCKERFILE" ] || die "$DOCKERFILE: no such file"
     [ -r "$DOCKERFILE" ] || die "$DOCKERFILE: cannot be read"
-    NAME="$PROJECT-builder-$USERNAME-$TARGET"
+    NAME="$PROJECT-on-$TARGET-for-$USERNAME"
 }
 
 declare -a BUILD_ARGS=()
@@ -184,7 +186,7 @@ case "$cmd" in
         gen_grok_user_settings
         trap del_grok_user_settings EXIT ERR SIGINT
         ( set -x
-        docker build "${@}" "${BUILD_ARGS[@]}" -t "${NAME}" -f "Dockerfile.$TARGET" .
+        docker build "${@}" "${BUILD_ARGS[@]}" -t "${NAME}" -f "${DOCKERFILE}" .
         )
         exit $?
         ;;
