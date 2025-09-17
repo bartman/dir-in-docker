@@ -51,9 +51,45 @@ function set_build_args {
     [ -n "$value" ] && BUILD_ARGS+=( "--build-arg=GIT_NAME=$value" )
 
     # Add UID, GID, and USERNAME as build arguments to match host user
+    BUILD_ARGS+=( "--build-arg=WORKDIR=$PWD" )
     BUILD_ARGS+=( "--build-arg=UID=$USER_UID" )
     BUILD_ARGS+=( "--build-arg=GID=$USER_GID" )
     BUILD_ARGS+=( "--build-arg=USERNAME=$USERNAME" )
+}
+
+GROK_USER_SETTINGS_JSON=grok-user-settings.json
+function gen_grok_user_settings {
+    if [ -f ~/.grok/user-settings.json ] ; then
+        cp ~/.grok/user-settings.json "$GROK_USER_SETTINGS_JSON"
+        return 0
+    fi
+
+    local key=
+    if [ -n "$GROK_API_KEY" ] ; then
+        key="$GROK_API_KEY"
+    elif [ -n "$XAI_API_KEY" ] ; then
+        key="$XAI_API_KEY"
+    else
+        die "did not find ~/.grok/user-settings.json, and neither GROK_API_KEY nor XAI_API_KEY env vars are set"
+    fi
+
+    cat > "$GROK_USER_SETTINGS_JSON" <<END
+{
+  "apiKey": "$key",
+  "baseURL": "https://api.x.ai/v1",
+  "defaultModel": "grok-code-fast-1",
+  "models": [
+    "grok-code-fast-1",
+    "grok-4-latest",
+    "grok-3-latest",
+    "grok-3-fast",
+    "grok-3-mini-fast"
+  ]
+}
+END
+}
+function del_grok_user_settings {
+    rm -f "$GROK_USER_SETTINGS_JSON"
 }
 
 function show_status {
@@ -141,6 +177,8 @@ case "$cmd" in
         ;;
     build)
         set_build_args
+        gen_grok_user_settings
+        trap del_grok_user_settings EXIT ERR SIGINT
         ( set -x
         docker build "${@}" "${BUILD_ARGS[@]}" -t "${NAME}" -f "Dockerfile.$TARGET" .
         )

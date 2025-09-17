@@ -13,23 +13,38 @@ RUN npm install -g bun
 ARG UID
 ARG GID
 ARG USERNAME
+ARG WORKDIR
 RUN getent group users || groupadd -g $GID users
 #RUN getent passwd ubuntu && userdel ubuntu
 RUN useradd -u $UID -g $GID -m -s /bin/bash $USERNAME
 RUN echo "$USERNAME  ALL=(ALL:ALL)  NOPASSWD:SETENV: ALL" > "/etc/sudoers.d/$USERNAME"
 USER $USERNAME
 
-# Create ~/.local/bin directory, add it to the PATH
-RUN mkdir -p /home/${USERNAME}/.local/bin
+# Create ~/.bun/bin & ~/.local/bin directories, add them to the PATH
+RUN mkdir -p /home/${USERNAME}/.bun/bin /home/${USERNAME}/.local/bin
 RUN echo 'export PATH=$HOME/.bun/bin:$HOME/.local/bin:$PATH' >> /home/${USERNAME}/.bashrc
-RUN echo 'export GROK_API_KEY=""' >> /home/${USERNAME}/.bashrc
+
+# should have something like this in ~/.grok/user-settings.json
+#{
+#    "apiKey": "xai-################################################################################",
+#    "baseURL": "https://api.x.ai/v1",
+#    "defaultModel": "grok-code-fast-1",
+#    "models": [
+#        "grok-code-fast-1",
+#        "grok-4-latest",
+#        "grok-3-latest",
+#        "grok-3-fast",
+#        "grok-3-mini-fast"
+#    ]
+#}
+COPY grok-user-settings.json /home/${USERNAME}/.grok/user-settings.json
 
 # had issues with the latest
 #RUN bun add -g @vibe-kit/grok-cli
 RUN bun add -g @vibe-kit/grok-cli@0.0.27
 
 # Make git usable inside container
-RUN git config --global --add safe.directory /home/bart/proj/grok-cli-wrapper
+RUN git config --global --add safe.directory ${WORKDIR}
 
 ARG GIT_EMAIL
 ARG GIT_NAME
@@ -38,7 +53,7 @@ ENV GIT_NAME=${GIT_NAME}
 RUN git config --global user.email "${GIT_EMAIL}"
 RUN git config --global user.name "${GIT_NAME}"
 
-WORKDIR /home/bart/proj/grok-cli-wrapper
+WORKDIR ${WORKDIR}
 
 # Keep running
 CMD ["tail", "-f", "/dev/null"]
