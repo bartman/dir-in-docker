@@ -48,7 +48,7 @@ directory.
 
 ```sh
 $ mkdir ~/altera
-$ did -x -v ~/altera -p x11-apps -p libglib2.0-0t64 -p libfontconfig build , start , enter
+$ did -x -i -v ~/altera -p x11-apps -p libglib2.0-0t64 -p libfontconfig build , start , enter
 # in the container...
 $ ./qinst-linux-25.1.1-125.run
 # and after...
@@ -73,11 +73,14 @@ did [ [options] <command> [command-options] ] [ , ... ]
 
     Options:
 
-        -t <target>    - target to use, default: debian
-        -p <project>   - target to use, default: dir-in-docker
-        -d <dir>       - Dockerfile location, default:
-                           /home/bart/proj/dir-in-docker/dockerfiles
-        -x             - enable X forwarding (use with start/stop)
+        -t <target>    - target to use, default: $(default_target)
+        -n <name>      - name to use, default: ${PROJNAME}
+        -d <dir>       - [build] Dockerfile location, default:
+                           /whereever/dir-in-docker/dockerfiles
+        -p <pkg>       - [build] add this package to the build
+        -v <dir>       - [start] make this path also visible in container
+        -i             - [start] enable host networking
+        -x             - [start] enable X forwarding
 
     Available commands:
 

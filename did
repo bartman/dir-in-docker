@@ -11,6 +11,7 @@ WORKDIR="$(pwd)"
 PROJNAME="$(basename "$WORKDIR")"
 TARGET=
 XENABLE=false
+NETENABLE=false
 EXTRA_VOLUMES=( )
 EXTRA_PACKAGES=( )
 
@@ -126,6 +127,7 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
                            ${DOCKERFILE_DIR}
         -p <pkg>       - [build] add this package to the build
         -v <dir>       - [start] make this path also visible in container
+        -i             - [start] enable host networking
         -x             - [start] enable X forwarding
 
     Available commands:
@@ -192,6 +194,9 @@ function cmd_dispatch {
                 xhost +local:docker
                 )
             fi
+
+            $NETENABLE && XARGS+=( --net=host )
+
             for v in "${EXTRA_VOLUMES[@]}" ; do
                 XARGS+=( --volume "$v:$v" )
             done
@@ -308,6 +313,7 @@ while [ "${#@}" -gt 0 ] ; do
         -v=*) EXTRA_VOLUMES+=( "${arg#-v=}" ) ;;
         -v)   EXTRA_VOLUMES+=( "$1" ) ; shift ;;
 
+        -i)   NETENABLE=true ;;
         -x)   XENABLE=true ;;
         help|--help|-h)
             show_help
