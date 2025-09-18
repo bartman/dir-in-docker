@@ -33,6 +33,36 @@ $ sudo apt install x11-apps
 $ xeyes
 ```
 
+You can combine multiple steps into one command with `,` as a separator...
+
+```sh
+$ did -x build , start , enter
+```
+
+## extras
+
+An example use case... I downloaded some Intel FPGA build tool (Quartus) and I need
+to run an install.  I created a shared directory, that I will make available to the
+container.  So the container will only get the current directory, and the `~/altera`
+directory.
+
+```sh
+$ mkdir ~/altera
+$ did -x -v ~/altera -p x11-apps -p libglib2.0-0t64 -p libfontconfig build , start , enter
+# in the container...
+$ ./qinst-linux-25.1.1-125.run
+# and after...
+$ did stop , rm
+```
+
+Each subsequent time I want to run the software, I can now do it from different locations,
+but passing in the `~/altera` path where the software is installed.
+
+```sh
+$ cd ~/work/some-fpga-project
+$ did -x -v ~/altera -p x11-apps -p libglib2.0-0t64 -p libfontconfig build , start , enter
+```
+
 ## online help
 
 Here is the online help...

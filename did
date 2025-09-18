@@ -8,9 +8,10 @@ SELF="${SELF##*/}"
 DOCKERFILE_DIR=$(realpath ${SELFDIR}/dockerfiles)
 
 WORKDIR="$(pwd)"
-PROJECT="$(basename "$WORKDIR")"
+PROJNAME="$(basename "$WORKDIR")"
 TARGET=
 XENABLE=false
+EXTRA_VOLUMES=( )
 EXTRA_PACKAGES=( )
 
 HOSTNAME="$(hostname)"
@@ -37,7 +38,7 @@ function default_target {
     available_targets | head -n1
 }
 
-declare TARGET= DOCKERFILE= NAME=
+declare TARGET= DOCKERFILE= FULLNAME=
 
 function derive_target_project_variables {
     [ -z "$TARGET" ] && TARGET="$(default_target)"
@@ -45,8 +46,8 @@ function derive_target_project_variables {
     DOCKERFILE="$DOCKERFILE_DIR/${TARGET}.Dockerfile"
     [ -f "$DOCKERFILE" ] || die "$DOCKERFILE: no such file"
     [ -r "$DOCKERFILE" ] || die "$DOCKERFILE: cannot be read"
-    NAME="DID-${PROJECT}-for-$USERNAME-on-$TARGET"
-    NAME="$(tr 'A-Z' 'a-z' <<<"$NAME")"
+    FULLNAME="DID-${PROJNAME}-for-$USERNAME-on-$TARGET"
+    FULLNAME="$(tr 'A-Z' 'a-z' <<<"$FULLNAME")"
 }
 
 declare -a BUILD_ARGS=()
@@ -89,26 +90,26 @@ function set_build_args {
 }
 
 function show_status {
-    local images=( $( docker images | awk "\$1 ~ /\<${NAME}\>/ { print \$3 }" ) )
+    local images=( $( docker images | awk "\$1 ~ /\<${FULLNAME}\>/ { print \$3 }" ) )
     if [ "${#images[@]}" -gt 0 ] ; then
-        echo -e "${NAME}: image is ${BRIGHT_GREEN}built${RESET}:    ${BRIGHT_BLUE}${images[*]}${RESET}"
+        echo -e "${FULLNAME}: image is ${BRIGHT_GREEN}built${RESET}:    ${BRIGHT_BLUE}${images[*]}${RESET}"
     else
-        echo -e "${NAME}: image is ${BRIGHT_RED}not built${RESET}."
+        echo -e "${FULLNAME}: image is ${BRIGHT_RED}not built${RESET}."
     fi
 
     # Check if container is running
-    local running=( $( docker ps | awk "\$2 ~ /\<${NAME}\>/ { print \$1 }" ) )
+    local running=( $( docker ps | awk "\$2 ~ /\<${FULLNAME}\>/ { print \$1 }" ) )
     if [ "${#running[@]}" -gt 0 ] ; then
-        echo -e "${NAME}: cntnr is ${BRIGHT_GREEN}running${RESET}:  ${BRIGHT_BLUE}${running[*]}${RESET}"
+        echo -e "${FULLNAME}: cntnr is ${BRIGHT_GREEN}running${RESET}:  ${BRIGHT_BLUE}${running[*]}${RESET}"
     fi
 
-    local stopped=( $( docker ps --all | awk "\$2 ~ /\<${NAME}\>/ && /Exited / { print \$1 }" ) )
+    local stopped=( $( docker ps --all | awk "\$2 ~ /\<${FULLNAME}\>/ && /Exited / { print \$1 }" ) )
     if [ "${#stopped[@]}" -gt 0 ] ; then
-        echo -e "${NAME}: cntnr is ${BRIGHT_YELLOW}stopped${RESET}:  ${BRIGHT_BLUE}${stopped[*]}${RESET}"
+        echo -e "${FULLNAME}: cntnr is ${BRIGHT_YELLOW}stopped${RESET}:  ${BRIGHT_BLUE}${stopped[*]}${RESET}"
     fi
 
     if [ "${#running[@]}" -eq 0 ] && [ "${#stopped[@]}" -eq 0 ] ; then
-        echo -e "${NAME}: cntnr does ${BRIGHT_RED}not exist${RESET}."
+        echo -e "${FULLNAME}: cntnr does ${BRIGHT_RED}not exist${RESET}."
     fi
 }
 
@@ -120,10 +121,12 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
     Options:
 
         -t <target>    - target to use, default: $(default_target)
-        -p <project>   - target to use, default: ${PROJECT}
-        -d <dir>       - Dockerfile location, default:
+        -n <name>      - name to use, default: ${PROJNAME}
+        -d <dir>       - [build] Dockerfile location, default:
                            ${DOCKERFILE_DIR}
-        -x             - enable X forwarding (use with start/stop)
+        -p <pkg>       - [build] add this package to the build
+        -v <dir>       - [start] make this path also visible in container
+        -x             - [start] enable X forwarding
 
     Available commands:
 
@@ -159,7 +162,7 @@ function cmd_dispatch {
             [[ "$cmd" =~ $re ]] || die "bad"
             for x in ${cmd//,/ } ; do
                 echo -e >&2 "# ${BRIGHT_YELLOW}$0 $x $*${RESET}"
-                if ! "$SELFDIR/$SELF" "-t=$TARGET" "-p=$PROJECT" "$x" "$@" ; then
+                if ! "$SELFDIR/$SELF" "-t=$TARGET" "-p=$PROJNAME" "$x" "$@" ; then
                     die "failed: $0 $x $*"
                 fi
             done
@@ -169,14 +172,14 @@ function cmd_dispatch {
             derive_target_project_variables
             set_build_args
             ( set -x
-            docker build "${@}" "${BUILD_ARGS[@]}" --tag "${NAME}" --file "${DOCKERFILE}" .
+            docker build "${@}" "${BUILD_ARGS[@]}" --tag "${FULLNAME}" --file "${DOCKERFILE}" .
             )
             return $?
             ;;
         rm|remove)
             derive_target_project_variables
             ( set -x
-            docker image rm --force "${NAME}"
+            docker image rm --force "${FULLNAME}"
             )
             return $?
             ;;
@@ -184,21 +187,24 @@ function cmd_dispatch {
             derive_target_project_variables
             XARGS=( )
             if $XENABLE ; then
-                XARGS=( --env "DISPLAY=$DISPLAY" --volume "/tmp/.X11-unix:/tmp/.X11-unix" )
+                XARGS+=( --env "DISPLAY=$DISPLAY" --volume "/tmp/.X11-unix:/tmp/.X11-unix" )
                 ( set -x
                 xhost +local:docker
                 )
             fi
+            for v in "${EXTRA_VOLUMES[@]}" ; do
+                XARGS+=( --volume "$v:$v" )
+            done
             ( set -x
-            docker run --detach --init --volume "$WORKDIR:$WORKDIR" --user "$USER_UID:$USER_GID" --name "${NAME}" "${XARGS[@]}" "${NAME}"
+            docker run --detach --init --volume "$WORKDIR:$WORKDIR" --user "$USER_UID:$USER_GID" --name "${FULLNAME}" "${XARGS[@]}" "${FULLNAME}"
             )
             return $?
             ;;
         down|stop)
             derive_target_project_variables
-            container_ids=( $(docker ps --all --filter "name=${NAME}" --format='{{.ID}}') )
+            container_ids=( $(docker ps --all --filter "name=${FULLNAME}" --format='{{.ID}}') )
             if [ "${#container_ids[@]}" = 0 ]; then
-                echo "Container ${NAME} is not running."
+                echo "Container ${FULLNAME} is not running."
             else
                 if $XENABLE ; then
                     ( set -x
@@ -234,9 +240,9 @@ function cmd_dispatch {
             ;;
         connect|enter)
             derive_target_project_variables
-            container_id="$(docker ps --all --filter "name=${NAME}" --format='{{.ID}}')"
+            container_id="$(docker ps --all --filter "name=${FULLNAME}" --format='{{.ID}}')"
             if [ -z "$container_id" ]; then
-                echo "Container ${NAME} is not running."
+                echo "Container ${FULLNAME} is not running."
             else
                 ( set -x
                 docker exec -it "$container_id" bash
@@ -246,9 +252,9 @@ function cmd_dispatch {
             ;;
         run|exec)
             derive_target_project_variables
-            container_id="$(docker ps --all --filter "name=${NAME}" --format='{{.ID}}')"
+            container_id="$(docker ps --all --filter "name=${FULLNAME}" --format='{{.ID}}')"
             if [ -z "$container_id" ]; then
-                echo "Container ${NAME} is not running."
+                echo "Container ${FULLNAME} is not running."
                 exit 1
             elif [ $# -eq 0 ]; then
                 echo "No command provided to run in the container."
@@ -274,6 +280,7 @@ while [ "${#@}" -gt 0 ] ; do
 
     if [ "$arg" = , ] ; then
         cmd_dispatch "$cmd" "${accumulate[@]}" || die "failed: $cmd ${accumulate[*]}"
+        cmd=
         continue
     fi
 
@@ -288,10 +295,19 @@ while [ "${#@}" -gt 0 ] ; do
             ;;
         -t=*) TARGET="${arg#-t=}" ;;
         -t)   TARGET="$1" ; shift ;;
-        -p=*) PROJECT="${arg#-p=}" ;;
-        -p)   PROJECT="$1" ; shift ;;
+
+        -n=*) PROJNAME="${arg#-n=}" ;;
+        -n)   PROJNAME="$1" ; shift ;;
+
         -d=*) DOCKERFILE_DIR="${arg#-d=}" ;;
         -d)   DOCKERFILE_DIR="$1" ; shift ;;
+
+        -p=*) EXTRA_PACKAGES+=( "${arg#-p=}" ) ;;
+        -p)   EXTRA_PACKAGES+=( "$1" ) ; shift ;;
+
+        -v=*) EXTRA_VOLUMES+=( "${arg#-v=}" ) ;;
+        -v)   EXTRA_VOLUMES+=( "$1" ) ; shift ;;
+
         -x)   XENABLE=true ;;
         help|--help|-h)
             show_help
