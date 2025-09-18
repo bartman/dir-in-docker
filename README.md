@@ -12,6 +12,61 @@ This work is continuation (or tangent) of my [grok-cli-wrapper](https://github.c
 script.  This was specific to wrapping [grok-cli](https://github.com/superagent-ai/grok-cli/) in docker,
 but `did` is generic and should work for anything you want to contain.
 
+## how to use
+
+Setup an alias to run the script form where you cloned it:
+```sh
+$ git clone https://github.com/bartman/dir-in-docker.git ~/.local/did
+$ alias did=~/.local/did/did
+```
+
+then you can use it from anywhere
+
+```sh
+# go to the directory you want to be visible inside the container
+$ cd my-thing
+$ did -x build
+$ did -x start
+$ did enter
+# once in the container you can edit files, etc
+$ sudo apt install x11-apps
+$ xeyes
+```
+
+## online help
+
+Here is the online help...
+
+```
+❯ did -h
+did [ [options] <command> [command-options] ] [ , ... ]
+
+    Options:
+
+        -t <target>    - target to use, default: debian
+        -p <project>   - target to use, default: dir-in-docker
+        -d <dir>       - Dockerfile location, default:
+                           /home/bart/proj/dir-in-docker/dockerfiles
+        -x             - enable X forwarding (use with start/stop)
+
+    Available commands:
+
+        build          - create a dev image
+        remove         - remove a dev image
+        start          - start the container
+        stop           - stop the container
+        status         - check if built/running
+        connect        - get a shell in the container
+        run     <cmd>  - run a command in the container
+
+        , used to separate multiple commands
+
+    Available targets:
+
+        debian
+
+```
+
 ## TODO
 
 - this is getting complex -- consider python or rust.
