@@ -1,20 +1,16 @@
-# grok-cli-wrapper
+# dir-in-container
 
-This script builds a Docker container, installs [grok-cli](https://github.com/superagent-ai/grok-cli/) in it,
-and maps the current directory into the container.
+`did` starts a docker container with the current directory mapped inside.
+The container has no access to any files except those found in the PWD.
+This made be useful if you just want to quickly run some command in
+isolation or don't trust the software you're building/running.
 
-This should make it relatively safe to run agentic work on your current repository.
+The container is named such that returning from this same path will
+invoke the same container, unless you clean things up.
 
-The first time you must build and start the container.
-
-- `grok-cli-wrapper deb build` - builds the docker container
-- `grok-cli-wrapper deb start` - launches it
-- `grok-cli-wrapper deb enter` - enters the container (from multiple terminals if you wish)
-
-Your `~/.grok/user-settings.json` will be copied into the container,
-or created if you have `GROK_API_KEY` or `XAI_API_KEY` environment variable set.
-
-In the container, just run `grok`.
+This work is continuation (or tangent) of my [grok-cli-wrapper](https://github.com/bartman/grok-cli-wrapper)
+script.  This was specific to wrapping [grok-cli](https://github.com/superagent-ai/grok-cli/) in docker,
+but `did` is generic and should work for anything you want to contain.
 
 ## TODO
 
