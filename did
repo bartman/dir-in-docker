@@ -110,7 +110,7 @@ function set_build_args {
 }
 
 function show_status {
-    local images=( $( docker images | awk "\$1 ~ /\<${FULLNAME}\>/ { print \$3 }" ) )
+    local images=( $( docker images | awk "\$1 == \"${FULLNAME}\" { print \$3 }" ) )
     if [ "${#images[@]}" -gt 0 ] ; then
         echo -e "${FULLNAME}: image is ${BRIGHT_GREEN}built${RESET}:    ${BRIGHT_BLUE}${images[*]}${RESET}"
     else
@@ -118,12 +118,12 @@ function show_status {
     fi
 
     # Check if container is running
-    local running=( $( docker ps | awk "\$2 ~ /\<${FULLNAME}\>/ { print \$1 }" ) )
+    local running=( $( docker ps | awk "\$2 == \"${FULLNAME}\" { print \$1 }" ) )
     if [ "${#running[@]}" -gt 0 ] ; then
         echo -e "${FULLNAME}: cntnr is ${BRIGHT_GREEN}running${RESET}:  ${BRIGHT_BLUE}${running[*]}${RESET}"
     fi
 
-    local stopped=( $( docker ps --all | awk "\$2 ~ /\<${FULLNAME}\>/ && /Exited / { print \$1 }" ) )
+    local stopped=( $( docker ps --all | awk "\$2 == \"${FULLNAME}\" && /Exited / { print \$1 }" ) )
     if [ "${#stopped[@]}" -gt 0 ] ; then
         echo -e "${FULLNAME}: cntnr is ${BRIGHT_YELLOW}stopped${RESET}:  ${BRIGHT_BLUE}${stopped[*]}${RESET}"
     fi
