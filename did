@@ -172,8 +172,14 @@ END
     echo
 }
 
+function assert_no_more_arguments {
+    local cmd="$1"
+    local cnt="$2"
+    [[ $cnt = 0 ]] || die "$cmd did not expect additional arguments, found $cnt"
+}
+
 function cmd_dispatch {
-    cmd="$1" ; shift
+    local cmd="$1" ; shift
 
     case "$cmd" in
         help|--help|-h)
@@ -200,6 +206,7 @@ function cmd_dispatch {
             return $?
             ;;
         rm|remove)
+            assert_no_more_arguments $cmd $#
             derive_target_project_variables
             ( set -x
             docker image rm --force "${FULLNAME}"
@@ -207,6 +214,7 @@ function cmd_dispatch {
             return $?
             ;;
         up|start)
+            assert_no_more_arguments $cmd $#
             derive_target_project_variables
             XARGS=( )
             if $XENABLE ; then
@@ -227,6 +235,7 @@ function cmd_dispatch {
             return $?
             ;;
         down|stop)
+            assert_no_more_arguments $cmd $#
             derive_target_project_variables
             container_ids=( $(docker ps --all --filter "name=${FULLNAME}" --format='{{.ID}}') )
             if [ "${#container_ids[@]}" = 0 ]; then
@@ -251,6 +260,7 @@ function cmd_dispatch {
             return 0
             ;;
         status)
+            assert_no_more_arguments $cmd $#
             if [ -n "$TARGET" ] ; then
                 derive_target_project_variables
                 show_status
@@ -265,6 +275,7 @@ function cmd_dispatch {
             return 0
             ;;
         connect|enter)
+            assert_no_more_arguments $cmd $#
             derive_target_project_variables
             container_id="$(docker ps --all --filter "name=${FULLNAME}" --format='{{.ID}}')"
             if [ -z "$container_id" ]; then
