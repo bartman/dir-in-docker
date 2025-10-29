@@ -5,8 +5,6 @@ SELF="$(realpath $0)"
 SELFDIR="$(dirname "${SELF}")"
 SELF="${SELF##*/}"
 
-DOCKERFILE_DIR=$(realpath ${SELFDIR}/dockerfiles)
-
 WORKDIR="$(pwd)"
 PROJNAME="$(basename "$WORKDIR")"
 TARGET=
@@ -14,6 +12,9 @@ XENABLE=false
 NETENABLE=false
 EXTRA_VOLUMES=( )
 EXTRA_PACKAGES=( )
+
+LCL_DOCKERFILE_DIR=$(realpath ${WORKDIR})
+SYS_DOCKERFILE_DIR=$(realpath ${SELFDIR}/dockerfiles)
 
 HOSTNAME="$(hostname)"
 USERNAME="$(id -u -n)"
@@ -31,12 +32,30 @@ function die {
 }
 
 function available_targets {
-    find "$DOCKERFILE_DIR" -name '*.Dockerfile' -printf '%f\n' | while read filename ; do
-    echo "${filename%.Dockerfile}"
+    local -A seen
+    for dir in "$LCL_DOCKERFILE_DIR" "$SYS_DOCKERFILE_DIR" ; do
+        find "$dir" -name '*.Dockerfile' -printf '%f\n' | while read filename ; do
+            local name="${filename%.Dockerfile}"
+            [ -v "seen[$name]" ] && continue
+            seen[$name]=1
+            echo "$name"
+        done
     done
 }
 function default_target {
     available_targets | head -n1
+}
+function dockerfile_for {
+    local target="$1"
+    local possible=(
+        "$LCL_DOCKERFILE_DIR/${target}.Dockerfile"
+        "$SYS_DOCKERFILE_DIR/${target}.Dockerfile"
+    )
+    for try in "${possible[@]}" ; do
+        [ -f "$try" ] || continue
+        echo "$try"
+        return
+    done
 }
 
 declare TARGET= DOCKERFILE= FULLNAME=
@@ -44,7 +63,7 @@ declare TARGET= DOCKERFILE= FULLNAME=
 function derive_target_project_variables {
     [ -z "$TARGET" ] && TARGET="$(default_target)"
     [ -z "$TARGET" ] && die "No targets found; see documentation."
-    DOCKERFILE="$DOCKERFILE_DIR/${TARGET}.Dockerfile"
+    DOCKERFILE="$(dockerfile_for "$TARGET")"
     [ -f "$DOCKERFILE" ] || die "$DOCKERFILE: no such file"
     [ -r "$DOCKERFILE" ] || die "$DOCKERFILE: cannot be read"
     FULLNAME="DID-${PROJNAME}-for-$USERNAME-on-$TARGET"
@@ -123,8 +142,10 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
 
         -t <target>    - target to use, default: $(default_target)
         -n <name>      - name to use, default: ${PROJNAME}
-        -d <dir>       - [build] Dockerfile location, default:
-                           ${DOCKERFILE_DIR}
+        -d <dir>       - [build] local *.Dockerfile location, default:
+                           ${LCL_DOCKERFILE_DIR}
+        -D <dir>       - [build] system *.Dockerfile location, default:
+                           ${SYS_DOCKERFILE_DIR}
         -p <pkg>       - [build] add this package to the build
         -v <dir>       - [start] make this path also visible in container
         -i             - [start] enable host networking
@@ -146,7 +167,7 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
 
 END
     for t in $(available_targets); do
-        echo "        $t"
+        printf "        %-20s   - %s\n" "$t" "$(dockerfile_for "$t")"
     done
     echo
 }
@@ -304,8 +325,11 @@ while [ "${#@}" -gt 0 ] ; do
         -n=*) PROJNAME="${arg#-n=}" ;;
         -n)   PROJNAME="$1" ; shift ;;
 
-        -d=*) DOCKERFILE_DIR="${arg#-d=}" ;;
-        -d)   DOCKERFILE_DIR="$1" ; shift ;;
+        -d=*) LCL_DOCKERFILE_DIR="${arg#-d=}" ;;
+        -d)   LCL_DOCKERFILE_DIR="$1" ; shift ;;
+
+        -D=*) SYS_DOCKERFILE_DIR="${arg#-d=}" ;;
+        -D)   SYS_DOCKERFILE_DIR="$1" ; shift ;;
 
         -p=*) EXTRA_PACKAGES+=( "${arg#-p=}" ) ;;
         -p)   EXTRA_PACKAGES+=( "$1" ) ; shift ;;
