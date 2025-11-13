@@ -94,6 +94,7 @@ function set_build_args {
     # Capture other useful environment variables
     local extra_env=
     for var in TERM EDITOR VISUAL LANG FULLNAME ; do
+        [[ ${!var+x} ]] || continue
         local val="${!var}"
         if [ -n "$val" ] ; then
             [ -n "${extra_env}" ] && extra_env+=' '
