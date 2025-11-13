@@ -34,7 +34,7 @@ function die {
 function available_targets {
     local -A seen
     for dir in "$LCL_DOCKERFILE_DIR" "$SYS_DOCKERFILE_DIR" ; do
-        find "$dir" -name '*.Dockerfile' -printf '%f\n' | while read filename ; do
+        find "$dir" -maxdepth 1 -name '*.Dockerfile' -printf '%f\n' | while read filename ; do
             local name="${filename%.Dockerfile}"
             [ -v "seen[$name]" ] && continue
             seen[$name]=1
