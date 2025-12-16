@@ -150,7 +150,7 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
         -p <pkg>       - [build] add this package to the build
         -v <dir>       - [start] make this path also visible in container
         -i             - [start] enable host networking
-        -x             - [start] enable X forwarding
+        -X             - [start] enable X forwarding
 
     Available commands:
 
@@ -350,7 +350,7 @@ while [ "${#@}" -gt 0 ] ; do
         -v)   EXTRA_VOLUMES+=( "$1" ) ; shift ;;
 
         -i)   NETENABLE=true ;;
-        -x)   XENABLE=true ;;
+        -X)   XENABLE=true ;;
         help|--help|-h)
             show_help
             exit 0
