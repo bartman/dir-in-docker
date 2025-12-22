@@ -9,6 +9,7 @@ WORKDIR="$(pwd)"
 PROJNAME="$(basename "$WORKDIR")"
 TARGET=
 XENABLE=false
+PERFENABLE=false
 NETENABLE=false
 EXTRA_VOLUMES=( )
 EXTRA_PACKAGES=( )
@@ -27,8 +28,12 @@ BRIGHT_BLACK='\033[1;30m' BRIGHT_RED='\033[1;31m' BRIGHT_GREEN='\033[1;32m' BRIG
 RESET='\033[0m'
 
 function die {
-    echo >&2 "ERROR: $*"
+    echo -e >&2 "${BRIGHT_RED}ERROR: $*${RESET}"
     exit 1
+}
+
+function warn {
+    echo -e >&2 "${BRIGHT_YELLOW}WARNING: $*${RESET}"
 }
 
 function available_targets {
@@ -143,13 +148,16 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
 
         -t <target>    - target to use, default: $(default_target)
         -n <name>      - name to use, default: ${PROJNAME}
+
         -d <dir>       - [build] local *.Dockerfile location, default:
                            ${LCL_DOCKERFILE_DIR}
         -D <dir>       - [build] system *.Dockerfile location, default:
                            ${SYS_DOCKERFILE_DIR}
         -p <pkg>       - [build] add this package to the build
+
         -v <dir>       - [start] make this path also visible in container
-        -i             - [start] enable host networking
+        -N             - [start] enable host networking
+        -P             - [start] enable perf in docker
         -X             - [start] enable X forwarding
 
     Available commands:
@@ -226,6 +234,11 @@ function cmd_dispatch {
             fi
 
             $NETENABLE && XARGS+=( --net=host )
+
+            if $PERFENABLE ; then
+
+                XARGS+=( --cap-add=PERFMON )
+            fi
 
             for v in "${EXTRA_VOLUMES[@]}" ; do
                 XARGS+=( --volume "$v:$v" )
@@ -349,8 +362,18 @@ while [ "${#@}" -gt 0 ] ; do
         -v=*) EXTRA_VOLUMES+=( "${arg#-v=}" ) ;;
         -v)   EXTRA_VOLUMES+=( "$1" ) ; shift ;;
 
-        -i)   NETENABLE=true ;;
+        -N) NETENABLE=true ;;
         -X)   XENABLE=true ;;
+
+        -P)
+            case "$( sysctl -n kernel.perf_event_paranoid )" in
+                -1) ;;
+                *) warn "for perf to work in container, run the following from the host:\n\n\t" \
+                    "sudo sysctl -w kernel.perf_event_paranoid=-1\n"
+            esac
+            PERFENABLE=true
+            ;;
+
         help|--help|-h)
             show_help
             exit 0
