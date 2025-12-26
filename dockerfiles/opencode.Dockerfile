@@ -13,7 +13,7 @@ ARG EXTRA_PACKAGES
 # Install curl, Node.js (LTS version 20), and npm in one layer to reduce image size
 RUN apt-get update && \
     apt-get install -y curl ca-certificates sudo neovim jq git kitty-terminfo \
-        npm \
+        npm systemd-coredump linux-perf \
         ${EXTRA_PACKAGES} && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
