@@ -13,6 +13,7 @@ PERFENABLE=false
 NETENABLE=false
 EXTRA_VOLUMES=( )
 EXTRA_PACKAGES=( )
+EXPOSE_PORTS=( )
 
 LCL_DOCKERFILE_DIR=$(realpath ${WORKDIR})
 SYS_DOCKERFILE_DIR=$(realpath ${SELFDIR}/dockerfiles)
@@ -157,6 +158,7 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
 
         -v <dir>       - [start] make this path also visible in container
         -N             - [start] enable host networking
+        -E <port>      - [start] expose container port to host
         -P             - [start] enable perf in docker
         -X             - [start] enable X forwarding
 
@@ -232,6 +234,14 @@ function cmd_dispatch {
                 xhost +local:docker
                 )
             fi
+
+            for port in "${EXPOSE_PORTS[@]}" ; do
+                local re="^[0-9]{1,5}:[0-9]{1,5}$"
+                if ! [[ "$port" =~ $re ]] ; then
+                    die "exposing ports requires <container-port>:<host-port> argument, not '$port'"
+                fi
+                XARGS+=( -p "$port" )
+            done
 
             $NETENABLE && XARGS+=( --net=host )
 
@@ -362,7 +372,10 @@ while [ "${#@}" -gt 0 ] ; do
         -v=*) EXTRA_VOLUMES+=( "${arg#-v=}" ) ;;
         -v)   EXTRA_VOLUMES+=( "$1" ) ; shift ;;
 
-        -N) NETENABLE=true ;;
+        -E=*) EXPOSE_PORTS+=( "${arg#-v=}" ) ;;
+        -E)   EXPOSE_PORTS+=( "$1" ) ; shift ;;
+
+        -N)   NETENABLE=true ;;
         -X)   XENABLE=true ;;
 
         -P)
