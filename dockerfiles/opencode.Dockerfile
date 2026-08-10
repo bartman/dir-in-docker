@@ -37,9 +37,9 @@ USER $USERNAME
 
 RUN mkdir -p /home/$USERNAME/.config/opencode /home/$USERNAME/.local/share/opencode
 
-COPY .opencode/auth.json*         /home/$USERNAME/.local/share/opencode/
-COPY .opencode/opencode.jsonc*    /home/$USERNAME/.config/opencode/
-COPY .opencode/skills             /home/$USERNAME/.config/opencode/skills/
+COPY --chown=$UID:$GID .opencode/auth.json*      /home/$USERNAME/.local/share/opencode/
+COPY --chown=$UID:$GID .opencode/opencode.jsonc* /home/$USERNAME/.config/opencode/
+COPY --chown=$UID:$GID .opencode/skills          /home/$USERNAME/.config/opencode/skills/
 
 # update user's bashrc
 RUN echo "export PATH=\$PATH:~/bin:~/.local/bin:~/.bun/bin" >> "/home/$USERNAME/.bashrc"
