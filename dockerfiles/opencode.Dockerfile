@@ -28,6 +28,19 @@ RUN useradd -u $UID -g $GID -m -s /bin/bash $USERNAME
 RUN echo "$USERNAME  ALL=(ALL:ALL)  NOPASSWD:SETENV: ALL" > "/etc/sudoers.d/$USERNAME"
 USER $USERNAME
 
+# must have an .opencode directory with:
+#
+#    .opencode/auth.json
+#    .opencode/opencode.jsonc
+#    .opencode/skills/
+#
+
+RUN mkdir -p /home/$USERNAME/.config/opencode /home/$USERNAME/.local/share/opencode
+
+COPY .opencode/auth.json*         /home/$USERNAME/.local/share/opencode/
+COPY .opencode/opencode.jsonc*    /home/$USERNAME/.config/opencode/
+COPY .opencode/skills             /home/$USERNAME/.config/opencode/skills/
+
 # update user's bashrc
 RUN echo "export PATH=\$PATH:~/bin:~/.local/bin:~/.bun/bin" >> "/home/$USERNAME/.bashrc"
 
