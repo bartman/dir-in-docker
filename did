@@ -82,12 +82,12 @@ function set_build_args {
     local value
 
     # transfer host user.email to docker
-    value="$(git config user.email)"
+    value="$(git config user.email || true)"
     [ -z "$value" ] && value="$USERNAME@$HOSTNAME"
     [ -n "$value" ] && BUILD_ARGS+=( "--build-arg=GIT_EMAIL=$value" )
 
     # transfer host user.name to docker
-    value="$(git config user.name)"
+    value="$(git config user.name || true)"
     [ -z "$value" ] && value="$USERNAME"
     [ -n "$value" ] && BUILD_ARGS+=( "--build-arg=GIT_NAME=$value" )
 
