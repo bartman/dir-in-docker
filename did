@@ -379,7 +379,7 @@ while [ "${#@}" -gt 0 ] ; do
         -d=*) LCL_DOCKERFILE_DIR="${arg#-d=}" ;;
         -d)   LCL_DOCKERFILE_DIR="$1" ; shift ;;
 
-        -D=*) SYS_DOCKERFILE_DIR="${arg#-d=}" ;;
+        -D=*) SYS_DOCKERFILE_DIR="${arg#-D=}" ;;
         -D)   SYS_DOCKERFILE_DIR="$1" ; shift ;;
 
         -p=*) EXTRA_PACKAGES+=( "${arg#-p=}" ) ;;
@@ -388,7 +388,7 @@ while [ "${#@}" -gt 0 ] ; do
         -v=*) EXTRA_VOLUMES+=( "${arg#-v=}" ) ;;
         -v)   EXTRA_VOLUMES+=( "$1" ) ; shift ;;
 
-        -E=*) EXPOSE_PORTS+=( "${arg#-v=}" ) ;;
+        -E=*) EXPOSE_PORTS+=( "${arg#-E=}" ) ;;
         -E)   EXPOSE_PORTS+=( "$1" ) ; shift ;;
 
         -N)   NETENABLE=true ;;
