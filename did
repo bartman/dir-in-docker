@@ -357,6 +357,7 @@ while [ "${#@}" -gt 0 ] ; do
     if [ "$arg" = , ] ; then
         cmd_dispatch "$cmd" "${accumulate[@]}" || die "failed: $cmd ${accumulate[*]}"
         cmd=
+        accumulate=( )
         continue
     fi
 
