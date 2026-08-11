@@ -13,7 +13,7 @@ ARG EXTRA_PACKAGES
 # Install curl, Node.js/npm, and common tools in one layer
 RUN apt-get update && \
     apt-get install -y curl ca-certificates sudo neovim jq git kitty-terminfo \
-        npm systemd-coredump linux-perf \
+        npm systemd-coredump linux-perf ripgrep fd-find \
         ${EXTRA_PACKAGES} && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
