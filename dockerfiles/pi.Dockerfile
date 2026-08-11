@@ -38,6 +38,10 @@ RUN echo "export PATH=\$PATH:~/bin:~/.local/bin" >> "/home/$USERNAME/.bashrc"
 # Make git usable inside container
 RUN git config --global --add safe.directory ${WORKDIR}
 
+# install some pi packages
+pi install npm:pi-meta-ai
+pi install npm:pi-meta-oauth
+
 ENV GIT_EMAIL=${GIT_EMAIL}
 ENV GIT_NAME=${GIT_NAME}
 RUN git config --global user.email "${GIT_EMAIL}"
