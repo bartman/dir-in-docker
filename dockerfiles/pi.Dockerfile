@@ -34,6 +34,7 @@ RUN mkdir -p /home/$USERNAME/.pi/agent
 
 # update user's bashrc
 RUN echo "export PATH=\$PATH:~/bin:~/.local/bin" >> "/home/$USERNAME/.bashrc"
+RUN echo "export  $EXTRA_ENV" >> "/home/$USERNAME/.bashrc"
 
 # Make git usable inside container
 RUN git config --global --add safe.directory ${WORKDIR}

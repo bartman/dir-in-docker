@@ -43,6 +43,7 @@ COPY --chown=$UID:$GID .opencode/skills          /home/$USERNAME/.config/opencod
 
 # update user's bashrc
 RUN echo "export PATH=\$PATH:~/bin:~/.local/bin:~/.bun/bin" >> "/home/$USERNAME/.bashrc"
+RUN echo "export  $EXTRA_ENV" >> "/home/$USERNAME/.bashrc"
 
 # install opencode
 RUN bun install -g opencode-ai

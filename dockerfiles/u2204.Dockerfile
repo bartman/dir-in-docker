@@ -24,6 +24,10 @@ RUN useradd -u $UID -g $GID -m -s /bin/bash $USERNAME
 RUN echo "$USERNAME  ALL=(ALL:ALL)  NOPASSWD:SETENV: ALL" > "/etc/sudoers.d/$USERNAME"
 USER $USERNAME
 
+# update user's bashrc
+RUN echo "export PATH=\$PATH:~/bin:~/.local/bin" >> "/home/$USERNAME/.bashrc"
+RUN echo "export  $EXTRA_ENV" >> "/home/$USERNAME/.bashrc"
+
 # Make git usable inside container
 RUN git config --global --add safe.directory ${WORKDIR}
 
