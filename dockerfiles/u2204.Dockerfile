@@ -11,7 +11,7 @@ ARG GIT_EMAIL
 ARG GIT_NAME
 ARG EXTRA_PACKAGES
 
-# Install curl, Node.js (LTS version 20), and npm in one layer to reduce image size
+# Install common tools
 RUN apt-get update && \
     apt-get install -y curl ca-certificates sudo neovim jq git kitty-terminfo ${EXTRA_PACKAGES} && \
     apt-get clean && \

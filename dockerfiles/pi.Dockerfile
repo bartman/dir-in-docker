@@ -10,7 +10,7 @@ ARG GIT_EMAIL
 ARG GIT_NAME
 ARG EXTRA_PACKAGES
 
-# Install curl, Node.js/npm, and common tools in one layer
+# Install common tools
 RUN apt-get update && \
     apt-get install -y curl ca-certificates sudo neovim jq git kitty-terminfo \
         npm systemd-coredump linux-perf ripgrep fd-find \
