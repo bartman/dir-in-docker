@@ -38,9 +38,11 @@ RUN echo "export PATH=\$PATH:~/bin:~/.local/bin" >> "/home/$USERNAME/.bashrc"
 # Make git usable inside container
 RUN git config --global --add safe.directory ${WORKDIR}
 
-# install some pi packages
-pi install npm:pi-meta-ai
-pi install npm:pi-meta-oauth
+# install some pi packages from forks (patched - see forks/pi-meta-ai and forks/pi-meta-oauth)
+#RUN pi install npm:pi-meta-ai
+#RUN pi install npm:pi-meta-oauth
+RUN pi install https://github.com/bartman/pi-meta-ai.git
+RUN pi install https://github.com/bartman/pi-meta-oauth.git
 
 ENV GIT_EMAIL=${GIT_EMAIL}
 ENV GIT_NAME=${GIT_NAME}
