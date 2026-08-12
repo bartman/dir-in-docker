@@ -52,7 +52,7 @@ $ did -X -N -v ~/altera -p x11-apps -p libglib2.0-0t64 -p libfontconfig build , 
 # in the container...
 $ ./qinst-linux-25.1.1-125.run
 # and after...
-$ did stop , rm
+$ did down , remove
 ```
 
 Each subsequent time I want to run the software, I can now do it from different locations,
@@ -98,20 +98,21 @@ did [ [options] <command> [command-options] ] [ , ... ]
         -p <pkg>       - [build] add this package to the build
 
         -v <dir>       - [start] make this path also visible in container
-        -N             - [start] enable host networking
-        -E <port>      - [start] expose port (host:container)
+        -N             - [start] enable host networking (reduces isolation)
+        -E <port>      - [start] expose container port to host (host:container)
         -P             - [start] enable perf in docker
-        -X             - [start] enable X forwarding
+        -X             - [start] enable X forwarding (uses xhost +local:docker)
 
     Available commands:
 
         build          - create a dev image
         remove         - remove a dev image
-        start          - start the container
-        stop           - stop and remove the container
+        start          - start the container (create or restart)
+        stop           - stop the container (keeps it for restart)
+        down           - stop and remove the container
         status         - check if built/running
-        connect        - get a shell in the container (alias: enter)
-        run     <cmd>  - run a command in the container
+        connect        - get a shell in the running container (alias: enter)
+        run     <cmd>  - run a command in the running container
 
         , used to separate multiple commands
 
