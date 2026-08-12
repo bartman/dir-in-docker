@@ -98,14 +98,19 @@ function set_build_args {
     BUILD_ARGS+=( "--build-arg=GID=$USER_GID" )
     BUILD_ARGS+=( "--build-arg=USERNAME=$USERNAME" )
 
-    # Capture other useful environment variables
+    # Capture other useful environment variables (include truecolor/terminal hints)
     local extra_env=
-    for var in TERM EDITOR VISUAL LANG FULLNAME ; do
+    for var in TERM COLORTERM TERM_PROGRAM LANG LANGUAGE LC_ALL LC_CTYPE EDITOR VISUAL FULLNAME ; do
         [[ ${!var+x} ]] || continue
         local val="${!var}"
         if [ -n "$val" ] ; then
+            # escape for safe `export VAR="val"` in .bashrc (preserve spaces, handle " \ $ `)
+            local esc=${val//\\/\\\\}
+            esc=${esc//\"/\\\"}
+            esc=${esc//\$/\\\$}
+            esc=${esc//\`/\\\`}
             [ -n "${extra_env}" ] && extra_env+=' '
-            extra_env+="$var=\"$val\""
+            extra_env+="$var=\"$esc\""
         fi
     done
     echo "# extra_env: ${extra_env}"
@@ -269,6 +274,12 @@ function cmd_dispatch {
             for v in "${EXTRA_VOLUMES[@]}" ; do
                 XARGS+=( --volume "$v:$v" )
             done
+            # Forward terminal / truecolor hints at runtime (build-time EXTRA_ENV is stale after rebuild)
+            for var in TERM COLORTERM TERM_PROGRAM KITTY_WINDOW_ID KITTY_LISTEN_ON GHOSTTY_RESOURCES_DIR WEZTERM_PANE ITERM_SESSION_ID WT_SESSION TERMINAL_EMULATOR LANG LANGUAGE LC_ALL LC_CTYPE; do
+                if [[ ${!var+x} ]]; then
+                    XARGS+=( --env "$var=${!var}" )
+                fi
+            done
             ( set -x
             docker run --detach --init --volume "$WORKDIR:$WORKDIR" --user "$USER_UID:$USER_GID" --name "${FULLNAME}" "${XARGS[@]}" "${FULLNAME}"
             )
@@ -352,8 +363,15 @@ function cmd_dispatch {
                     echo "Container ${FULLNAME} is not running (stopped). Run 'did start' first."
                 fi
             else
+                # Forward terminal hints to exec session as well
+                EXEC_ENV=( )
+                for var in TERM COLORTERM TERM_PROGRAM KITTY_WINDOW_ID KITTY_LISTEN_ON GHOSTTY_RESOURCES_DIR WEZTERM_PANE ITERM_SESSION_ID WT_SESSION TERMINAL_EMULATOR LANG LANGUAGE LC_ALL LC_CTYPE; do
+                    if [[ ${!var+x} ]]; then
+                        EXEC_ENV+=( --env "$var=${!var}" )
+                    fi
+                done
                 ( set -x
-                docker exec -it "$container_id" bash -l
+                docker exec -it "${EXEC_ENV[@]}" "$container_id" bash -l
                 )
             fi
             return 0
@@ -376,8 +394,14 @@ function cmd_dispatch {
                 # Preserve arguments with shell-escaping to avoid word-splitting hazards
                 local esc_cmd
                 printf -v esc_cmd '%q ' "$@"
+                EXEC_ENV=( )
+                for var in TERM COLORTERM TERM_PROGRAM KITTY_WINDOW_ID KITTY_LISTEN_ON GHOSTTY_RESOURCES_DIR WEZTERM_PANE ITERM_SESSION_ID WT_SESSION TERMINAL_EMULATOR LANG LANGUAGE LC_ALL LC_CTYPE; do
+                    if [[ ${!var+x} ]]; then
+                        EXEC_ENV+=( --env "$var=${!var}" )
+                    fi
+                done
                 ( set -x
-                docker exec --interactive --workdir "${WORKDIR}" "$container_id" /bin/bash -l -c "$esc_cmd"
+                docker exec --interactive --workdir "${WORKDIR}" "${EXEC_ENV[@]}" "$container_id" /bin/bash -l -c "$esc_cmd"
                 )
             fi
             return 0

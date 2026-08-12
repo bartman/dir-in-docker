@@ -26,7 +26,7 @@ USER $USERNAME
 
 # update user's bashrc
 RUN echo "export PATH=\$PATH:~/bin:~/.local/bin" >> "/home/$USERNAME/.bashrc"
-RUN echo "export  $EXTRA_ENV" >> "/home/$USERNAME/.bashrc"
+RUN if [ -n "$EXTRA_ENV" ]; then echo "export $EXTRA_ENV" >> "/home/$USERNAME/.bashrc"; fi
 
 # Make git usable inside container
 RUN git config --global --add safe.directory ${WORKDIR}
