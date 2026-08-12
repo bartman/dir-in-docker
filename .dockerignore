@@ -1,0 +1,11 @@
+# Avoid baking secrets or big local caches into images
+.opencode/auth.json
+**/auth.json
+.pi/
+.opencode/node_modules/
+node_modules/
+.git/
+.gitignore
+*.log
+*~
+*.Dockerfile~
