@@ -97,6 +97,7 @@ function set_build_args {
     BUILD_ARGS+=( "--build-arg=UID=$USER_UID" )
     BUILD_ARGS+=( "--build-arg=GID=$USER_GID" )
     BUILD_ARGS+=( "--build-arg=USERNAME=$USERNAME" )
+    BUILD_ARGS+=( "--build-arg=LANG=$LANG" )
 
     # Capture other useful environment variables (include truecolor/terminal hints)
     local extra_env=
