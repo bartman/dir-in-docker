@@ -1,4 +1,4 @@
-ARG BASE
+ARG BASE=did-will-override-this-with-a-good-name
 FROM ${BASE}
 
 # all the variables passed in from the shell script
