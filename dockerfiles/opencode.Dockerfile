@@ -1,4 +1,4 @@
-FROM debian:testing
+FROM did-opencode-base
 
 # all the variables passed in from the shell script
 ARG UID
@@ -11,23 +11,14 @@ ARG GIT_EMAIL
 ARG GIT_NAME
 ARG EXTRA_PACKAGES
 
-# Install common tools
-RUN apt-get update && \
-    apt-get install -y curl ca-certificates sudo neovim jq git kitty-terminfo \
-        locales npm systemd-coredump linux-perf \
-        ${EXTRA_PACKAGES} && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# opencode-base provides base system with npm installed
 
-# enable host locale in the container
-RUN if [ -n "$LANG" ] && [ "$LANG" != "C" ] && [ "$LANG" != "C.UTF-8" ]; then \
-        sed -i "s|^# *${LANG} UTF-8|${LANG} UTF-8|" /etc/locale.gen || true; \
-        grep -q "^${LANG} UTF-8" /etc/locale.gen || echo "${LANG} UTF-8" >> /etc/locale.gen; \
-        locale-gen; \
+# Install extra packages
+RUN if [ -n "$EXTRA_PACKAGES" ]; then \
+      apt-get update && apt-get install -y $EXTRA_PACKAGES && \
+      { if [ -x dependencies.sh ] ; then ./dependencies.sh ; fi ; } &&
+      apt-get clean && rm -rf /var/lib/apt/lists/*; \
     fi
-
-# install bun
-RUN npm install -g bun
 
 # this lets us have the same UID:GID in the container
 RUN getent group users || groupadd -g $GID users
