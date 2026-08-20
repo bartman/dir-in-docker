@@ -11,6 +11,7 @@ TARGET=
 XENABLE=false
 PERFENABLE=false
 NETENABLE=false
+REBUILD=false
 EXTRA_VOLUMES=( )
 EXTRA_PACKAGES=( )
 EXPOSE_PORTS=( )
@@ -43,6 +44,8 @@ function available_targets {
         [ -d "$dir" ] || continue
         while IFS= read -r filename ; do
             local name="${filename%.Dockerfile}"
+            # skip base dockerfiles; they are built as dependencies, not targets
+            [[ "$name" == *-base ]] && continue
             [[ -v seen[$name] ]] && continue
             seen[$name]=1
             echo "$name"
@@ -65,7 +68,22 @@ function dockerfile_for {
     done
 }
 
+# Locate NAME-base.Dockerfile for a given target NAME (local overrides system).
+function base_dockerfile_for {
+    local target="$1"
+    local possible=(
+        "$LCL_DOCKERFILE_DIR/${target}-base.Dockerfile"
+        "$SYS_DOCKERFILE_DIR/${target}-base.Dockerfile"
+    )
+    for try in "${possible[@]}" ; do
+        [ -f "$try" ] || continue
+        echo "$try"
+        return
+    done
+}
+
 declare TARGET= DOCKERFILE= FULLNAME=
+declare BASE_DOCKERFILE= BASE_FULLNAME=
 
 function derive_target_project_variables {
     [ -z "$TARGET" ] && TARGET="$(default_target)"
@@ -75,6 +93,16 @@ function derive_target_project_variables {
     [ -r "$DOCKERFILE" ] || die "$DOCKERFILE: cannot be read"
     FULLNAME="DID-${PROJNAME}-for-$USERNAME-on-$TARGET"
     FULLNAME="$(tr 'A-Z' 'a-z' <<<"$FULLNAME")"
+
+    # Optional shared base: NAME-base.Dockerfile -> image did-NAME-base
+    BASE_DOCKERFILE="$(base_dockerfile_for "$TARGET" || true)"
+    if [ -n "${BASE_DOCKERFILE:-}" ]; then
+        BASE_FULLNAME="did-${TARGET}-base"
+        BASE_FULLNAME="$(tr 'A-Z' 'a-z' <<<"$BASE_FULLNAME")"
+    else
+        BASE_DOCKERFILE=
+        BASE_FULLNAME=
+    fi
 }
 
 declare -a BUILD_ARGS=()
@@ -123,7 +151,45 @@ function set_build_args {
     BUILD_ARGS+=( "--build-arg=EXTRA_PACKAGES=${EXTRA_PACKAGES[*]}" )
 }
 
+# Build did-NAME-base if NAME-base.Dockerfile exists and image is missing or --rebuild was given.
+function ensure_base_image {
+    [ -n "${BASE_DOCKERFILE:-}" ] || return 0
+    [ -n "${BASE_FULLNAME:-}" ] || return 0
+
+    local need_build=false
+    if $REBUILD ; then
+        need_build=true
+    elif ! docker image inspect "${BASE_FULLNAME}" >/dev/null 2>&1 ; then
+        need_build=true
+    fi
+
+    if ! $need_build ; then
+        echo -e "# base image ${BRIGHT_GREEN}${BASE_FULLNAME}${RESET} already present"
+        return 0
+    fi
+
+    echo -e "# building base image ${BRIGHT_YELLOW}${BASE_FULLNAME}${RESET} from ${BASE_DOCKERFILE}"
+    local base_context
+    base_context="$(dirname "${BASE_DOCKERFILE}")"
+    ( set -x
+    docker build \
+        --build-arg "LANG=${LANG:-}" \
+        --tag "${BASE_FULLNAME}" \
+        --file "${BASE_DOCKERFILE}" \
+        "${base_context}"
+    )
+}
+
 function show_status {
+    if [ -n "${BASE_FULLNAME:-}" ] ; then
+        local base_images=( $( docker images --filter "reference=${BASE_FULLNAME}" --format '{{.ID}}' ) )
+        if [ "${#base_images[@]}" -gt 0 ] ; then
+            echo -e "${BASE_FULLNAME}: base  is ${BRIGHT_GREEN}built${RESET}:    ${BRIGHT_BLUE}${base_images[*]}${RESET}"
+        else
+            echo -e "${BASE_FULLNAME}: base  is ${BRIGHT_RED}not built${RESET}."
+        fi
+    fi
+
     local images=( $( docker images --filter "reference=${FULLNAME}" --format '{{.ID}}' ) )
     if [ "${#images[@]}" -gt 0 ] ; then
         echo -e "${FULLNAME}: image is ${BRIGHT_GREEN}built${RESET}:    ${BRIGHT_BLUE}${images[*]}${RESET}"
@@ -162,6 +228,8 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
         -D <dir>       - [build] system *.Dockerfile location, default:
                            ${SYS_DOCKERFILE_DIR}
         -p <pkg>       - [build] add this package to the build
+        --rebuild      - [build] force rebuild of shared base image (did-NAME-base)
+                         when NAME-base.Dockerfile exists
 
         -v <dir>       - [start] make this path also visible in container
         -N             - [start] enable host networking (reduces isolation)
@@ -171,7 +239,7 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
 
     Available commands:
 
-        build          - create a dev image
+        build          - create a dev image (auto-builds did-NAME-base if needed)
         remove         - remove a dev image
         start          - start the container (create or restart)
         stop           - stop the container (keeps it for restart)
@@ -218,6 +286,7 @@ function cmd_dispatch {
             ;;
         build)
             derive_target_project_variables
+            ensure_base_image
             set_build_args
             ( set -x
             docker build "${@}" "${BUILD_ARGS[@]}" --tag "${FULLNAME}" --file "${DOCKERFILE}" .
@@ -458,6 +527,7 @@ while [ "${#@}" -gt 0 ] ; do
 
         -N)   NETENABLE=true ;;
         -X)   XENABLE=true ;;
+        --rebuild|--rebulid) REBUILD=true ;;
 
         -P)
             case "$( sysctl -n kernel.perf_event_paranoid )" in
