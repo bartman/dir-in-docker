@@ -5,12 +5,8 @@
  grok-user-settings.json
 
 # auth / secrets should never be committed and should not be baked into images
-.opencode/auth.json
-.opencode/**/auth.json
-.pi/agent/auth.json
-.pi/agent/**/auth.json
+.opencode/
 .pi/
-.opencode/node_modules/
 
 # local build artifacts / backup dockefiles
 *.Dockerfile~
