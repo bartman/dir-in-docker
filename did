@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eu
 
-SELF="$(realpath $0)"
+SELF="$(realpath "$0")"
 SELFDIR="$(dirname "${SELF}")"
 SELF="${SELF##*/}"
 
@@ -16,8 +16,8 @@ EXTRA_VOLUMES=( )
 EXTRA_PACKAGES=( )
 EXPOSE_PORTS=( )
 
-LCL_DOCKERFILE_DIR=$(realpath ${WORKDIR})
-SYS_DOCKERFILE_DIR=$(realpath ${SELFDIR}/dockerfiles)
+LCL_DOCKERFILE_DIR="$(realpath "${WORKDIR}")"
+SYS_DOCKERFILE_DIR="$(realpath "${SELFDIR}/dockerfiles")"
 
 HOSTNAME="$(hostname)"
 USERNAME="$(id -u -n)"
@@ -92,13 +92,13 @@ function derive_target_project_variables {
     [ -f "$DOCKERFILE" ] || die "$DOCKERFILE: no such file"
     [ -r "$DOCKERFILE" ] || die "$DOCKERFILE: cannot be read"
     FULLNAME="DID-${PROJNAME}-for-$USERNAME-on-$TARGET"
-    FULLNAME="$(tr 'A-Z' 'a-z' <<<"$FULLNAME")"
+    FULLNAME="$(tr '[:upper:]' '[:lower:]' <<<"$FULLNAME")"
 
-    # Optional shared base: NAME-base.Dockerfile -> image did-NAME-base
+    # Optional shared base: NAME-base.Dockerfile -> image did-NAME-base-for-USER
     BASE_DOCKERFILE="$(base_dockerfile_for "$TARGET" || true)"
     if [ -n "${BASE_DOCKERFILE:-}" ]; then
-        BASE_FULLNAME="did-${TARGET}-base"
-        BASE_FULLNAME="$(tr 'A-Z' 'a-z' <<<"$BASE_FULLNAME")"
+        BASE_FULLNAME="did-${TARGET}-base-for-${USERNAME}"
+        BASE_FULLNAME="$(tr '[:upper:]' '[:lower:]' <<<"$BASE_FULLNAME")"
     else
         BASE_DOCKERFILE=
         BASE_FULLNAME=
@@ -151,7 +151,7 @@ function set_build_args {
     BUILD_ARGS+=( "--build-arg=EXTRA_PACKAGES=${EXTRA_PACKAGES[*]}" )
 }
 
-# Build did-NAME-base if NAME-base.Dockerfile exists and image is missing or --rebuild was given.
+# Build did-NAME-base-for-USER if NAME-base.Dockerfile exists and image is missing or --rebuild was given.
 function ensure_base_image {
     [ -n "${BASE_DOCKERFILE:-}" ] || return 0
     [ -n "${BASE_FULLNAME:-}" ] || return 0
@@ -173,7 +173,7 @@ function ensure_base_image {
     base_context="$(dirname "${BASE_DOCKERFILE}")"
     ( set -x
     docker build \
-        --build-arg "LANG=${LANG:-}" \
+        "${BUILD_ARGS[@]}" \
         --tag "${BASE_FULLNAME}" \
         --file "${BASE_DOCKERFILE}" \
         "${base_context}"
@@ -228,7 +228,7 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
         -D <dir>       - [build] system *.Dockerfile location, default:
                            ${SYS_DOCKERFILE_DIR}
         -p <pkg>       - [build] add this package to the build
-        --rebuild      - [build] force rebuild of shared base image (did-NAME-base)
+        --rebuild      - [build] force rebuild of shared base image (did-NAME-base-for-USER)
                          when NAME-base.Dockerfile exists
 
         -v <dir>       - [start] make this path also visible in container
@@ -239,7 +239,7 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
 
     Available commands:
 
-        build          - create a dev image (auto-builds did-NAME-base if needed)
+        build          - create a dev image (auto-builds did-NAME-base-for-USER if needed)
         remove         - remove a dev image
         start          - start the container (create or restart)
         stop           - stop the container (keeps it for restart)
@@ -286,8 +286,9 @@ function cmd_dispatch {
             ;;
         build)
             derive_target_project_variables
-            ensure_base_image
             set_build_args
+            ensure_base_image
+            [ -n "${BASE_FULLNAME:-}" ] && BUILD_ARGS+=( "--build-arg=BASE=${BASE_FULLNAME}" )
             ( set -x
             docker build "${@}" "${BUILD_ARGS[@]}" --tag "${FULLNAME}" --file "${DOCKERFILE}" .
             )
