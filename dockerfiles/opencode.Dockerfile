@@ -16,7 +16,7 @@ ARG EXTRA_PACKAGES
 # Install extra packages
 RUN if [ -n "$EXTRA_PACKAGES" ]; then \
       apt-get update && apt-get install -y $EXTRA_PACKAGES && \
-      { if [ -x dependencies.sh ] ; then ./dependencies.sh ; fi ; } &&
+      { if [ -x dependencies.sh ] ; then ./dependencies.sh ; fi ; } && \
       apt-get clean && rm -rf /var/lib/apt/lists/*; \
     fi
 
