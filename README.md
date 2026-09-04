@@ -68,16 +68,35 @@ $ did -X -v ~/altera -p x11-apps -p libglib2.0-0t64 -p libfontconfig build , sta
 Built-in Dockerfiles live in `dockerfiles/`.  A matching `./<target>.Dockerfile` in the
 current directory overrides the built-in one.
 
-| target   | base image       | notes                          |
-|----------|------------------|--------------------------------|
-| debian   | debian:testing   | minimal default-style image    |
-| u2204    | ubuntu:22.04     | Ubuntu LTS                     |
-| opencode | debian:testing   | opencode + bun                 |
-| pi       | debian:testing   | pi coding agent                |
+| target   | base image            | notes                          |
+|----------|-----------------------|--------------------------------|
+| debian   | debian:testing        | minimal default-style image    |
+| u2204    | ubuntu:22.04          | Ubuntu LTS                     |
+| opencode | did-opencode-base     | opencode + bun (shared base)   |
+| pi       | debian:testing        | pi coding agent                |
 
 ```sh
 $ did -t u2204 build , start , enter
 ```
+
+### shared base images
+
+If a target `NAME` has a companion `NAME-base.Dockerfile` (next to `NAME.Dockerfile`),
+`did build` will ensure a shared image `did-NAME-base` exists before building the
+per-project image.
+
+- First build (or after the base was removed): builds `did-NAME-base`, then the project image.
+- Later builds in other directories: reuse the same base layers; only the thin project
+  image is rebuilt.
+- Force a fresh base with `--rebuild`:
+
+```sh
+$ did --rebuild -t opencode build
+```
+
+`NAME-base` Dockerfiles are not listed as selectable targets; they are only built as
+dependencies of `NAME`. The project Dockerfile should `FROM did-NAME-base` (for example
+`FROM did-opencode-base`).
 
 ## online help
 
@@ -96,6 +115,8 @@ did [ [options] <command> [command-options] ] [ , ... ]
         -D <dir>       - [build] system *.Dockerfile location, default:
                            <install-dir>/dockerfiles
         -p <pkg>       - [build] add this package to the build
+        --rebuild      - [build] force rebuild of shared base image (did-NAME-base)
+                         when NAME-base.Dockerfile exists
 
         -v <dir>       - [start] make this path also visible in container
         -N             - [start] enable host networking (reduces isolation)
@@ -105,7 +126,7 @@ did [ [options] <command> [command-options] ] [ , ... ]
 
     Available commands:
 
-        build          - create a dev image
+        build          - create a dev image (auto-builds did-NAME-base if needed)
         remove         - remove a dev image
         start          - start the container (create or restart)
         stop           - stop the container (keeps it for restart)
@@ -131,3 +152,4 @@ did [ [options] <command> [command-options] ] [ , ... ]
 - have a config file the script reads: ENV vars to copy, files to copy, shared volumes to mount, etc
 - generate a custom Dockerfile instead of using `ENV` variables to pass info to an existing Dockerfile.
   maybe use some templating engine (python/rust).
+```
