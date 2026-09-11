@@ -12,7 +12,7 @@ ARG GIT_EMAIL
 ARG GIT_NAME
 ARG EXTRA_PACKAGES
 
-# u2204-base already created USERNAME and switched to it
+# u2604-base already created USERNAME and switched to it
 USER root
 
 # Install extra packages

@@ -1,39 +1,28 @@
-FROM debian:testing
+ARG BASE=did-will-override-this-with-a-good-name
+FROM ${BASE}
 
 # all the variables passed in from the shell script
 ARG UID
 ARG GID
 ARG USERNAME
+ARG LANG
 ARG WORKDIR
 ARG EXTRA_ENV
 ARG GIT_EMAIL
 ARG GIT_NAME
 ARG EXTRA_PACKAGES
 
-# Install common tools
-RUN apt-get update && \
-    apt-get install -y curl ca-certificates sudo neovim jq git kitty-terminfo ${EXTRA_PACKAGES} && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# debian-base already created USERNAME and switched to it
+USER root
 
-# this lets us have the same UID:GID in the container
-RUN getent group users || groupadd -g $GID users
-#RUN getent passwd ubuntu && userdel ubuntu
-RUN useradd -u $UID -g $GID -m -s /bin/bash $USERNAME
-RUN echo "$USERNAME  ALL=(ALL:ALL)  NOPASSWD:SETENV: ALL" > "/etc/sudoers.d/$USERNAME"
+# Install extra packages
+RUN if [ -n "$EXTRA_PACKAGES" ]; then \
+      apt-get update && apt-get install -y $EXTRA_PACKAGES && \
+      { if [ -x $WORKDIR/dependencies.sh ] ; then ./$WORKDIR/dependencies.sh ; fi ; } && \
+      apt-get clean && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 USER $USERNAME
-
-# update user's bashrc
-RUN echo "export PATH=\$PATH:~/bin:~/.local/bin" >> "/home/$USERNAME/.bashrc"
-RUN if [ -n "$EXTRA_ENV" ]; then echo "export $EXTRA_ENV" >> "/home/$USERNAME/.bashrc"; fi
-
-# Make git usable inside container
-RUN git config --global --add safe.directory ${WORKDIR}
-
-ENV GIT_EMAIL=${GIT_EMAIL}
-ENV GIT_NAME=${GIT_NAME}
-RUN git config --global user.email "${GIT_EMAIL}"
-RUN git config --global user.name "${GIT_NAME}"
 
 WORKDIR ${WORKDIR}
 
