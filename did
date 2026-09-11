@@ -233,6 +233,7 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
                          when NAME-base.Dockerfile exists
 
         -v <dir>       - [start] make this path also visible in container
+        -E <h:c>       - [start] expose port host-port:container-port (repeatable)
         -N             - [start] enable host networking (reduces isolation)
         -P             - [start] enable perf in docker
         -G             - [start] expose NVIDIA GPUs (CDI --device nvidia.com/gpu=all)
