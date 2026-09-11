@@ -11,6 +11,7 @@ TARGET=
 XENABLE=false
 PERFENABLE=false
 NETENABLE=false
+GPUENABLE=false
 REBUILD=false
 EXTRA_VOLUMES=( )
 EXTRA_PACKAGES=( )
@@ -233,8 +234,8 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
 
         -v <dir>       - [start] make this path also visible in container
         -N             - [start] enable host networking (reduces isolation)
-        -E <port>      - [start] expose container port to host (host:container)
         -P             - [start] enable perf in docker
+        -G             - [start] expose NVIDIA GPUs (CDI --device nvidia.com/gpu=all)
         -X             - [start] enable X forwarding (uses xhost +local:docker)
 
     Available commands:
@@ -337,9 +338,16 @@ function cmd_dispatch {
             done
 
             $NETENABLE && XARGS+=( --net=host )
-
             if $PERFENABLE ; then
                 XARGS+=( --cap-add=PERFMON )
+            fi
+
+            # NOTE: toggling -G on an existing container requires `did down` then
+            # `did -G start` (recreate), same as -N/-P/-X; `docker start` reuses create-time config.
+            # Uses CDI (--device) instead of --gpus all: docker 29's --gpus path demands
+            # an AMD CDI spec even on NVIDIA-only setups; nvidia.com/gpu=all touches NVIDIA only.
+            if $GPUENABLE ; then
+                XARGS+=( --device nvidia.com/gpu=all )
             fi
 
             for v in "${EXTRA_VOLUMES[@]}" ; do
@@ -522,11 +530,11 @@ while [ "${#@}" -gt 0 ] ; do
 
         -v=*) EXTRA_VOLUMES+=( "${arg#-v=}" ) ;;
         -v)   EXTRA_VOLUMES+=( "$1" ) ; shift ;;
-
         -E=*) EXPOSE_PORTS+=( "${arg#-E=}" ) ;;
         -E)   EXPOSE_PORTS+=( "$1" ) ; shift ;;
 
         -N)   NETENABLE=true ;;
+        -G)   GPUENABLE=true ;;
         -X)   XENABLE=true ;;
         --rebuild|--rebulid) REBUILD=true ;;
 

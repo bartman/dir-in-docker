@@ -98,6 +98,40 @@ $ did --rebuild -t opencode build
 dependencies of `NAME`. The project Dockerfile should `FROM did-NAME-base` (for example
 `FROM did-opencode-base`).
 
+### GPU support
+
+`did -G` exposes all host NVIDIA GPUs to the container
+(`docker run --device nvidia.com/gpu=all`, CDI).
+No image change is needed: the CDI spec injects `/dev/nvidia*` and the
+driver userspace at container-create time, so the stock `debian`/`u2204` bases work.
+
+```sh
+$ did -G -t u2204 build , start , run -- 'ls -la /dev/nvidia*'
+```
+
+Host prerequisites (host-side, not `did`): proprietary NVIDIA driver plus
+`nvidia-container-toolkit` generating the CDI spec (e.g. `/var/run/cdi/nvidia.yaml`
+or `nvidia-container-toolkit.json` — check with `ls /etc/cdi/ /var/run/cdi/`).
+On NixOS this is `hardware.nvidia` + `hardware.nvidia-container-toolkit.enable = true`
+rather than apt-installing the toolkit. No Docker daemon `runtimes` entry is needed
+for the CDI form.
+
+Deliberately NOT `--gpus all`: on Docker 29 the `--gpus` path demands an AMD CDI spec
+even on NVIDIA-only setups (`AMD CDI spec not found` / `could not select device driver`),
+while `nvidia.com/gpu=all` touches NVIDIA devices only.
+
+Boundary: `-G` does NOT install `nvidia-smi`/`nvcc`/cuDNN — it only exposes the GPU
+device nodes and driver userspace. The stock images contain no `nvidia-smi` binary;
+check visibility via `/dev/nvidia*` and `libcuda` instead. Compiling CUDA code still
+needs a toolkit inside the image (`did -G -p <cuda-toolkit-pkg> ...`, a project
+`dependencies.sh`, or a future `FROM nvidia/cuda` target, which is explicitly out of scope here).
+
+Failure mode: without the toolkit/CDI spec on the host, `did -G start` fails at
+`docker run` time — fix is host-side toolkit setup, not a `did` change. Toggling `-G`
+on an existing container requires `did down` then `did -G start` (recreate),
+same as `-N`/`-P`/`-X`.
+
+
 ## online help
 
 Here is the online help...
@@ -122,6 +156,7 @@ did [ [options] <command> [command-options] ] [ , ... ]
         -N             - [start] enable host networking (reduces isolation)
         -E <port>      - [start] expose container port to host (host:container)
         -P             - [start] enable perf in docker
+        -G             - [start] expose NVIDIA GPUs (CDI --device nvidia.com/gpu=all)
         -X             - [start] enable X forwarding (uses xhost +local:docker)
 
     Available commands:
