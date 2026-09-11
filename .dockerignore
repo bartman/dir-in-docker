@@ -1,7 +1,20 @@
 # Avoid baking secrets or big local caches into images
 .opencode/auth.json
 **/auth.json
-.pi/
+# .pi/ session/state excluded, but agent config re-included for thin-image COPY
+.pi/*
+!.pi/agent/
+.pi/agent/*
+!.pi/agent/auth.json*
+!.pi/agent/settings.json*
+!.pi/agent/models.json*
+!.pi/agent/keybindings.json*
+# omp project config stays visible; runtime state excluded
+.omp/agent/sessions/
+.omp/agent/blobs/
+.omp/agent/terminal-sessions/
+.omp/cache/
+.omp/wt/
 .opencode/node_modules/
 node_modules/
 .git/

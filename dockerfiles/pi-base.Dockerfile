@@ -1,0 +1,59 @@
+FROM debian:testing
+
+# all the variables passed in from the shell script
+ARG UID
+ARG GID
+ARG USERNAME
+ARG LANG
+ARG WORKDIR
+ARG EXTRA_ENV
+ARG GIT_EMAIL
+ARG GIT_NAME
+ARG EXTRA_PACKAGES
+
+# Install common tools
+RUN apt-get update && \
+    apt-get install -y curl ca-certificates sudo neovim jq git kitty-terminfo \
+        locales npm systemd-coredump linux-perf ripgrep fd-find \
+        ${EXTRA_PACKAGES} && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# enable host locale in the container
+RUN if [ -n "$LANG" ] && [ "$LANG" != "C" ] && [ "$LANG" != "C.UTF-8" ]; then \
+        sed -i "s|^# *${LANG} UTF-8|${LANG} UTF-8|" /etc/locale.gen || true; \
+        grep -q "^${LANG} UTF-8" /etc/locale.gen || echo "${LANG} UTF-8" >> /etc/locale.gen; \
+        locale-gen; \
+    fi
+
+# install pi coding agent
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+
+# matching UID:GID so bind-mounted files stay owned by the host user
+RUN getent group users || groupadd -g $GID users
+RUN getent group $GID || groupadd -g $GID $USERNAME
+RUN useradd -u $UID -g $GID -m -s /bin/bash $USERNAME
+RUN echo "$USERNAME  ALL=(ALL:ALL)  NOPASSWD:SETENV: ALL" > "/etc/sudoers.d/$USERNAME"
+USER $USERNAME
+
+# Pi global config / sessions / auth live under ~/.pi/agent/
+# Project-level config is expected under $WORKDIR/.pi/ (mounted from host)
+RUN mkdir -p /home/$USERNAME/.pi/agent
+
+# update user's bashrc
+RUN echo "export PATH=\$PATH:~/bin:~/.local/bin" >> "/home/$USERNAME/.bashrc"
+RUN if [ -n "$EXTRA_ENV" ]; then echo "export $EXTRA_ENV" >> "/home/$USERNAME/.bashrc"; fi
+
+# Make git usable inside container
+RUN git config --global --add safe.directory ${WORKDIR}
+
+# install some pi packages from forks (patched - see forks/pi-meta-ai and forks/pi-meta-oauth)
+#RUN pi install npm:pi-meta-ai
+#RUN pi install npm:pi-meta-oauth
+RUN pi install https://github.com/bartman/pi-meta-ai.git
+RUN pi install https://github.com/bartman/pi-meta-oauth.git
+
+ENV GIT_EMAIL=${GIT_EMAIL}
+ENV GIT_NAME=${GIT_NAME}
+RUN git config --global user.email "${GIT_EMAIL}"
+RUN git config --global user.name "${GIT_NAME}"

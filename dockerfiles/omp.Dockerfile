@@ -12,7 +12,7 @@ ARG GIT_EMAIL
 ARG GIT_NAME
 ARG EXTRA_PACKAGES
 
-# pi-base already created USERNAME and switched to it
+# omp-base already created USERNAME and switched to it
 USER root
 
 # Install extra packages
@@ -24,18 +24,19 @@ RUN if [ -n "$EXTRA_PACKAGES" ]; then \
 
 USER $USERNAME
 
-# must have a .pi/agent directory with:
+# must have a .omp/agent directory with:
 #
-#    .pi/agent/auth.json
-#    .pi/agent/settings.json
-#    .pi/agent/models.json
-#    .pi/agent/keybindings.json
+#    .omp/agent/config.yml
+#    .omp/agent/models.yml
+#    .omp/agent/secrets.yml
 #
+# auth is NOT baked in (omp stores it in agent.db via /login);
+# pass provider keys as env vars (e.g. -e XAI_API_KEY) or log in
+# on first entry.
 
-COPY --chown=$UID:$GID .pi/agent/auth.json*        /home/$USERNAME/.pi/agent/
-COPY --chown=$UID:$GID .pi/agent/settings.json*    /home/$USERNAME/.pi/agent/
-COPY --chown=$UID:$GID .pi/agent/models.json*      /home/$USERNAME/.pi/agent/
-COPY --chown=$UID:$GID .pi/agent/keybindings.json* /home/$USERNAME/.pi/agent/
+COPY --chown=$UID:$GID .omp/agent/config.yml*  /home/$USERNAME/.omp/agent/
+COPY --chown=$UID:$GID .omp/agent/models.yml*  /home/$USERNAME/.omp/agent/
+COPY --chown=$UID:$GID .omp/agent/secrets.yml* /home/$USERNAME/.omp/agent/
 
 WORKDIR ${WORKDIR}
 
