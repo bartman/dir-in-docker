@@ -16,6 +16,26 @@ REBUILD=false
 EXTRA_VOLUMES=( )
 EXTRA_PACKAGES=( )
 EXPOSE_PORTS=( )
+CAPADD=( )
+
+# Available -C capabilities: alias -> docker/kernel capability name
+CAP_ORDER=( trace net nice lock read admin )
+declare -A CAP_ALIASES=(
+    [trace]="SYS_PTRACE"
+    [net]="NET_ADMIN"
+    [nice]="SYS_NICE"
+    [lock]="IPC_LOCK"
+    [read]="DAC_READ_SEARCH"
+    [admin]="SYS_ADMIN"
+)
+declare -A CAP_DESC=(
+    [trace]="enable SYS_PTRACE capability for debugging processes in the container (attach gdb/strace/ptrace)"
+    [net]="enable NET_ADMIN capability (configure network interfaces, routes, firewall rules)"
+    [nice]="enable SYS_NICE capability (raise process priority / set CPU affinity: nice, renice, taskset)"
+    [lock]="enable IPC_LOCK capability (lock memory pages, e.g. mlock, used by some debuggers/crypto libs)"
+    [read]="enable DAC_READ_SEARCH capability (bypass file read permission checks)"
+    [admin]="enable SYS_ADMIN capability (broad system administration, e.g. mount) - use with caution"
+)
 
 LCL_DOCKERFILE_DIR="$(realpath "${WORKDIR}")"
 SYS_DOCKERFILE_DIR="$(realpath "${SELFDIR}/dockerfiles")"
@@ -37,6 +57,34 @@ function die {
 
 function warn {
     echo -e >&2 "${BRIGHT_YELLOW}WARNING: $*${RESET}"
+}
+
+function list_capabilities {
+    echo "Available capabilities for -C (specify by alias or capability name):"
+    echo
+    for alias in "${CAP_ORDER[@]}" ; do
+        printf "  %-16s %-16s - %s\n" "$alias" "${CAP_ALIASES[$alias]}" "${CAP_DESC[$alias]}"
+    done
+}
+
+# Resolve a -C argument (alias like "trace" or capability name like "SYS_PTRACE")
+# to its capability name. Prints the capability name and returns 0 on success,
+# returns 1 with nothing printed if the input isn't a known capability.
+function resolve_capability {
+    local input="$1"
+    local key="${input,,}"
+    if [[ -v CAP_ALIASES[$key] ]] ; then
+        echo "${CAP_ALIASES[$key]}"
+        return 0
+    fi
+    local upper="${input^^}"
+    for alias in "${CAP_ORDER[@]}" ; do
+        if [[ "${CAP_ALIASES[$alias]}" == "$upper" ]] ; then
+            echo "$upper"
+            return 0
+        fi
+    done
+    return 1
 }
 
 function available_targets {
@@ -238,6 +286,7 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
         -P             - [start] enable perf in docker
         -G             - [start] expose NVIDIA GPUs (CDI --device nvidia.com/gpu=all)
         -X             - [start] enable X forwarding (uses xhost +local:docker)
+        -C <cap>       - [start] enable capability (repeatable; -C help to list)
 
     Available commands:
 
@@ -257,6 +306,12 @@ ${SELF} [ [options] <command> [command-options] ] [ , ... ]
 END
     for t in $(available_targets); do
         printf "        %-20s   - %s\n" "$t" "$(dockerfile_for "$t")"
+    done
+    echo
+    echo "    Available capabilities (-C):"
+    echo
+    for alias in "${CAP_ORDER[@]}" ; do
+        printf "        %-16s   - %s\n" "$alias" "${CAP_DESC[$alias]}"
     done
     echo
 }
@@ -350,6 +405,10 @@ function cmd_dispatch {
             if $GPUENABLE ; then
                 XARGS+=( --device nvidia.com/gpu=all )
             fi
+
+            for cap in "${CAPADD[@]}" ; do
+                XARGS+=( --cap-add="$cap" )
+            done
 
             for v in "${EXTRA_VOLUMES[@]}" ; do
                 XARGS+=( --volume "$v:$v" )
@@ -538,6 +597,16 @@ while [ "${#@}" -gt 0 ] ; do
         -G)   GPUENABLE=true ;;
         -X)   XENABLE=true ;;
         --rebuild|--rebulid) REBUILD=true ;;
+
+        -C=*|-C)
+            if [ "$arg" = -C ] ; then cap="$1" ; shift ; else cap="${arg#-C=}" ; fi
+            if [ "$cap" = help ] ; then
+                list_capabilities
+                exit 0
+            fi
+            resolved="$(resolve_capability "$cap")" || die "unknown capability: $cap (run '-C help' to list available capabilities)"
+            CAPADD+=( "$resolved" )
+            ;;
 
         -P)
             case "$( sysctl -n kernel.perf_event_paranoid )" in
