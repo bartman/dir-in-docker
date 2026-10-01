@@ -27,8 +27,9 @@ RUN if [ -n "$LANG" ] && [ "$LANG" != "C" ] && [ "$LANG" != "C.UTF-8" ]; then \
 
 # this lets us have the same UID:GID in the container
 RUN getent group users || groupadd -g $GID users
-RUN getent group $GID || groupadd -g $GID $USERNAME
 RUN getent passwd ubuntu && userdel ubuntu || true
+RUN getent passwd $UID && userdel $(id -n -u $UID) || true
+RUN getent group $GID || groupadd -g $GID $USERNAME
 RUN useradd -u $UID -g $GID -m -s /bin/bash $USERNAME
 RUN echo "$USERNAME  ALL=(ALL:ALL)  NOPASSWD:SETENV: ALL" > "/etc/sudoers.d/$USERNAME"
 USER $USERNAME
